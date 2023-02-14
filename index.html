@@ -1,96 +1,166 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
 <head>
-<style>
-  body {
-    padding: 100px;
-    width: 1000px;
-    margin: auto;
-    text-align: left;
-    font-weight: 300;
-    font-family: 'Open Sans', sans-serif;
-    color: #121212;
-  }
-  h1, h2, h3, h4 {
-    font-family: 'Source Sans Pro', sans-serif;
-  }
-</style>
-<title>CS 184 Rasterizer</title>
-<meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+  <style>
+    body {
+      padding: 100px;
+      width: 1000px;
+      margin: auto;
+      text-align: left;
+      font-weight: 300;
+      font-family: 'Open Sans', sans-serif;
+      color: #121212;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      font-family: 'Source Sans Pro', sans-serif;
+    }
+  </style>
+  <title>CS 184 Rasterizer</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
 </head>
 
 
 <body>
 
-<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2018</h1>
-<h1 align="middle">Project 1: Rasterizer</h1>
-<h2 align="middle">YOUR NAME, CS184-??</h2>
+  <h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2023</h1>
+  <h1 align="middle">Project 1: Rasterizer</h1>
+  <h2 align="middle">Shahar Sandhaus</h2>
 
-<br><br>
+  <br><br>
 
-<div>
+  <div>
 
-<h2 align="middle">Overview</h2>
-<p>Give a high-level overview of what you implemented in this project. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the project.</p>
+    <h2 align="middle">Overview</h2>
+    <p>In this project I implemented a rasterizer that takes vertices for a triangle as input and reasterizes said
+      triangle in the framebuffer. This rasterizer supports texture sampling and vertex color interpalation by using the
+      barycentric coordinate algorithm. As someone who got into programming by making 3D games using OpenGL 1.0, I have
+      been using rasterizers with these features for years, so building my own was very enlightening.</p>
 
-<h2 align="middle">Section I: Rasterization</h2>
+    <h2 align="middle">Section I: Rasterization</h2>
 
-<h3 align="middle">Part 1: Rasterizing single-color triangles</h3>
+    <h3 align="middle">Part 1: Rasterizing single-color triangles</h3>
 
-<p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p>
+    <p>I decided that I would rasterize triangles by making use of the barycentric coordinate algorithm. By definition,
+      if alpha, beta, and gamma are all between 0 and 1, then the pixel is in the triangle. This method is definitely
+      slower than using three line test described in lecture, however, since I knew that I would need to implement this
+      algorithm later on anyways, I figured it would just be easier to use it here to. I did implement the bare bones
+      optimization of only testing pixels that are within the AABB (axis-aligned bounding box) of the trianle so that I
+      don't have to search through every pixel on the screen for just one triangle.</p>
 
-<div align="middle">
-  <table style="width=100%">
-    <tr>
-      <td>
-        <img src="images/image1.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
-      </td>
-      <td>
-        <img src="images/image2.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
-      </td>
-    </tr>
-    <br>
-    <tr>
-      <td>
-        <img src="images/image3.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
-      </td>
-      <td>
-        <img src="images/image4.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
-      </td>
-    </tr>
-  </table>
-</div>
+    <p>This algorithm is no worse than one that checks each sample within the bounding box of the triangle because that
+      is literally the algorithm I am using. Hence, it is <u>exactly</u> as bad as that.</p>
+
+    <p>Here is a screenshot of my fabulous rasterizer in action:</p>
+
+    <img src="images/screenshot_2-13_22-1-2.png" align="middle" width="400px" />
+
+    <h3 align="middle">Part 2: Antialiasing triangles</h3>
+
+    <p>I decided to implement supersampling by modifying the 'sample_buffer' variable inside the 'RasterizerImp' class to be a width x height x sample_rate 3D array. Then, to rasterize the framebuffer I simply looped through the sample_buffer and averaged out the "sample dimention" of the sample_buffer, leaving only a 2D width x height buffer that I then placed into the framebuffer.</p>
+
+    <p>I modified the 'fill_pixel' function to simply fill all the sample_buffer elemtents at (x, y) with the same color. When averaged out this will just result in the same color, preserving the functionality of the fill_pixel function that is used by the rest of the RasterizerImp class.</p>
+
+    <p>As for the triangle rasterization, I simply sampled each pixel multiple times at different points (i.e. the sample grid shown to us in lecture that has sqrt(sample_rate) spacing) and placed all those values into the sample_buffer elements at the (x, y). Therefore, when the averaging happens in the resolve_to_framebuffer function, the final framebuffer pixel is the supersampled result of all the samples I took reviously during the rasterization phase.</p>
+
+    <p>Images of my supersampling implementation are below:</p>
+
+    <div align="middle">
+      <table style="width=100%">
+        <tr>
+          <td>
+            <img src="images/screenshot_2-13_22-32-11.png" align="middle" width="400px" />
+            <figcaption align="middle"> <b>1x sampling</b> There is a lot of aliasing here because we are doing nothing to combat the sampling issues that occur when sampling rapidly changing functions.</figcaption>
+          </td>
+          <td>
+            <img src="images/screenshot_2-13_22-32-14.png" align="middle" width="400px" />
+            <figcaption align="middle"><b>4x sampling</b> The aliasing is much less noticeable here because we are comabiting the rapid changes of the underlying function by averaging between multiple samples at close but distinct points.</figcaption>
+          </td>
+        </tr>
+        <br>
+        <tr>
+          <td>
+            <img src="images/screenshot_2-13_22-32-16.png" align="middle" width="400px" />
+            <figcaption align="middle"> <b>16x sampling</b> There is next to no visible aliasing here since we are averaging many many samples of the function. This gives us a very smooth looking border, at the cost of an immense performance hit since we are literally doing 16 times the work. </figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <h3 align="middle">Part 3: Transforms</h3>
+
+    <img src="images/screenshot_2-13_23-9-47.png"/>
+    <figcaption align="middle"> Here we see the majestic robot attempting to do a split. </figcaption>
+
+    <h2 align="middle">Section II: Sampling</h2>
+
+    <h3 align="middle">Part 4: Barycentric coordinates</h3>
+
+    <p>We can express each point in a triangle as a linear conbination of the triangle's verticies. This change in basis is incredibly useful for linear interpolation of vertex properties of the triangle (such as color or uv coordinates for texture mapping). </p>
 
 
-<h3 align="middle">Part 2: Antialiasing triangles</h3>
+    <img src="images/Screenshot from 2023-02-13 23-16-01.png" width="400px" />
+    <figcaption align="middle"> The barycentric coordinates can be expressed as the alpha, beta, and gamma that solve this equation for some screen coordinate (x, y) given the triangle verticies (x0, y0), (x1, y1), and (x2, y2) </figcaption>
+
+    <img src="images/screenshot_2-13_23-19-40.png" width="400px" />
+    <figcaption align="middle"> This is how my rasterizer renders <i>svg/basic/test7.svg</i> </figcaption>
+
+    <h3 align="middle">Part 5: "Pixel sampling" for texture mapping</h3>
+
+
+    <h3 align="middle">Part 6: "Level sampling" with mipmaps for texture mapping</h3>
+
+
+    <p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.
+    </p>
+
+    
+
+    <div align="middle">
+      <table style="width=100%">
+        <tr>
+          <td>
+            <img src="images/image1.png" align="middle" width="400px" />
+            <figcaption align="middle">Caption goes here.</figcaption>
+          </td>
+          <td>
+            <img src="images/image2.png" align="middle" width="400px" />
+            <figcaption align="middle">Caption goes here.</figcaption>
+          </td>
+        </tr>
+        <br>
+        <tr>
+          <td>
+            <img src="images/image3.png" align="middle" width="400px" />
+            <figcaption align="middle">Caption goes here.</figcaption>
+          </td>
+          <td>
+            <img src="images/image4.png" align="middle" width="400px" />
+            <figcaption align="middle">Caption goes here.</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
 
 
 
-<h3 align="middle">Part 3: Transforms</h3>
 
 
 
-<h2 align="middle">Section II: Sampling</h2>
-
-<h3 align="middle">Part 4: Barycentric coordinates</h3>
-
-
-<h3 align="middle">Part 5: "Pixel sampling" for texture mapping</h3>
-
-
-<h3 align="middle">Part 6: "Level sampling" with mipmaps for texture mapping</h3>
+    
 
 
 
-<h2 align="middle">Section III: Art Competition</h2>
-<p>If you are not participating in the optional art competition, don't worry about this section!</p>
+    <h2 align="middle">Section III: Art Competition</h2>
+    <p>If you are not participating in the optional art competition, don't worry about this section!</p>
 
-<h3 align="middle">Part 7: Draw something interesting!</h3>
+    <h3 align="middle">Part 7: Draw something interesting!</h3>
 
 </body>
+
 </html>
