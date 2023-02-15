@@ -31,6 +31,7 @@
   <h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2023</h1>
   <h1 align="middle">Project 1: Rasterizer</h1>
   <h2 align="middle">Shahar Sandhaus</h2>
+  <h3 align="middle"> This writeup can be found online <a href="https://sharhar.github.io/cs184writeup/">here</a> </h3>
 
   <br><br>
 
@@ -112,55 +113,70 @@
 
     <h3 align="middle">Part 5: "Pixel sampling" for texture mapping</h3>
 
-
-    <h3 align="middle">Part 6: "Level sampling" with mipmaps for texture mapping</h3>
-
-
-    <p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.
-    </p>
-
-    
+    <p>Pixel sampling is the act of taking a uv coordinate in texture space (2d coordinate where both elements are between 0 and 1) and turning that into a color based on the texture in question. In all sampling methods, the uv coordinates are treated like a "percent of the image", so a value of 0.5 in one axis corresponds to the middle of the image. The two different sampling methods relate to how we turn this continuos range (0:1, 0:1) to a single sample of a discrete grid.</p>
+    <p> In nearest sampling, we simply calculate which texture pixel is closest to the uv coordinate and just return it's color. This results in a "pixelated" look for the texture, such as what we see in the block textures of Minecraft, that are each 16x16 pixels but get sampled in triangles that spans hundreds of pixels.</p>
+    <p>Bilinear sampling involved lineraly interpolating between the 4 closest texture values to the uv coordinate, and combining them in different proportions depending on how close the uv coordinate is to each pixel. This leads to textures that look much smoother, however, this method requires that we read 4x the texture data and perform more calculations, so it is slower.</p>
 
     <div align="middle">
       <table style="width=100%">
         <tr>
           <td>
-            <img src="images/image1.png" align="middle" width="400px" />
-            <figcaption align="middle">Caption goes here.</figcaption>
+            <img src="images/screenshot_2-14_15-48-11.png" align="middle" width="400px" />
+            <figcaption align="middle">Nearest sampling, 1x supersampling</figcaption>
           </td>
           <td>
-            <img src="images/image2.png" align="middle" width="400px" />
-            <figcaption align="middle">Caption goes here.</figcaption>
+            <img src="images/screenshot_2-14_15-48-15.png" align="middle" width="400px" />
+            <figcaption align="middle">Nearest sampling, 16x supersampling</figcaption>
           </td>
         </tr>
         <br>
         <tr>
           <td>
-            <img src="images/image3.png" align="middle" width="400px" />
-            <figcaption align="middle">Caption goes here.</figcaption>
+            <img src="images/screenshot_2-14_15-48-29.png" align="middle" width="400px" />
+            <figcaption align="middle">Bilinear sampling, 1x supersampling</figcaption>
           </td>
           <td>
-            <img src="images/image4.png" align="middle" width="400px" />
-            <figcaption align="middle">Caption goes here.</figcaption>
+            <img src="images/screenshot_2-14_15-48-34.png" align="middle" width="400px" />
+            <figcaption align="middle">Bilinear sampling, 16x supersampling</figcaption>
           </td>
         </tr>
       </table>
     </div>
 
+    The increase in samples per pixel is nery noticable when we are performing nearest texture sampling. However, wehn bilinear textrue sampling is used, the difference is barely noticeable. This is because perfroming bilinear sampling greatly reduces the rapidity of the underlying function, which means that taking more samples doesn't improve the accuracy of the final image much. However, bilinear sampling also blurrs edges that were sharp in the original texture, so if such an effect is not desired, one might still choose to use nearest sampling with supersampling to combat aliasing.
 
 
-
-
-
+    <h3 align="middle">Part 6: "Level sampling" with mipmaps for texture mapping</h3>
     
+    <p>If we attempt to sample a texture of some size onto a triangle that occupies far fewer pixels than the size of the texture, we inevitably get aliasing, since the "underlying function" of the texture is changing rapidly compared to the sample rate. To fix this we can precompute a "MipMap" where each "mip" is a scaled down version of our texture that is half as small as the previous mip level. Now, to prevent aliasing, we can simply select which mip level to sample from based on the sive of the triangle on the screen.</p>
+    <p>In practice, we calculate the mip level by finding the derivative of the uv coordinates with respect to the x and y coordinates of the pixels in the rasterized triangle. By finding the magnitude of these derivatives, we can calculate how spaced out our samples are in texture space, and then select the corresponding Mip(s).</p>
+    <p>In nearest mip sampleing mode, we simply calculate which mip is closest to our desired samepling rate and just use that (similarly to nearest texture samepling). In linear mip sampling, we find the two mip levels that our texture is between and we linearly interpolate between them, similarly to bilinear samepling.</p>
 
-
-
-    <h2 align="middle">Section III: Art Competition</h2>
-    <p>If you are not participating in the optional art competition, don't worry about this section!</p>
-
-    <h3 align="middle">Part 7: Draw something interesting!</h3>
-
+    <div align="middle">
+      <table style="width=100%">
+        <tr>
+          <td>
+            <img src="images/screenshot_2-14_16-15-27.png" align="middle" width="400px" />
+            <figcaption align="middle">L_ZERO, P_NEAREST</figcaption>
+          </td>
+          <td>
+            <img src="images/screenshot_2-14_16-15-31.png" align="middle" width="400px" />
+            <figcaption align="middle">L_ZERO, P_LINEAR</figcaption>
+          </td>
+        </tr>
+        <br>
+        <tr>
+          <td>
+            <img src="images/screenshot_2-14_16-15-36.png" align="middle" width="400px" />
+            <figcaption align="middle">L_NEAREST, P_NEAREST</figcaption>
+          </td>
+          <td>
+            <img src="images/screenshot_2-14_16-15-41.png" align="middle" width="400px" />
+            <figcaption align="middle">L_NEAREST, P_LINEAR</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
 </body>
 
 </html>
