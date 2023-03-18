@@ -19,7 +19,7 @@
     color: #121212;
   }
 </style>
-<title>CS 184 Mesh Edit</title>
+<title>CS 184 Path Tracer</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
 <link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
 
@@ -40,96 +40,81 @@
 <body>
 
 <h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2023</h1>
-<h1 align="middle">Project 2: Mesh Edit</h1>
+<h1 align="middle">Project 3-1: Path Tracer</h1>
 <h2 align="middle">Shahar Sandhaus</h2>
-<h3 align="middle"> This writeup can be found online <a href="https://sharhar.github.io/cs184writeup/">here</a> </h3>
 
+<!-- Add Website URL -->
+<h2 align="middle">Website URL: <a href="https://sharhar.github.io/cs184writeup/">https://sharhar.github.io/cs184writeup/</a></h2>
 
-<br><br>
+<br>
 
 <div>
 
 <h2 align="middle">Overview</h2>
 <p>
-In this project I implemented two things:
-
-<ol>
-  <li>Casteljau's algorithm for evaluating Bezier curves and Bezier surfaces</li>
-  <li>The flip-edge, split edge, and upscale operations of a HalfEdgeMesh datastructure, which can be used to programmatically modify some arbitrary mesh and perform what in the video game industry is refered to as "tesselation", which is really cool because I have always wondered how DX11 and OpenGL do that.</li>
-</ol>
+    In this project I implemented a ray tracing renderer. I started from the code that generates rays and performs the basic sampling, to intersection test acceleration, direct and indirect illumination, and adaptive sampling. As someone who has worked with graphics APIs like OpenGL only in the context of rasterization, I have always been interested to see how ray tracing actually works under the hood. Obviously, cutting edge ray tracing renderers like NVidia's RTX and the stuff they have at Pixar are far more complex than what I built here, but still, most of the core features are present and it was really cool to learn how to make it all. Especially global illumination, seeing the whole room light up once I finnaly got it working was SO rewarding!!
 </p>
 <br>
 
+<h2 align="middle">Part 1: Ray Generation and Scene Intersection (20 Points)</h2>
+<!-- Walk through the ray generation and primitive intersection parts of the rendering pipeline.
+Explain the triangle intersection algorithm you implemented in your own words.
+Show images with normal shading for a few small .dae files. -->
 
-<h2 align="middle">Section I: Bezier Curves and Surfaces</h2>
-
-<h3 align="middle">Part 1: Bezier Curves with 1D de Casteljau Subdivision</h3>
-
-
-<b>
-  Briefly explain de Casteljau's algorithm and how you implemented it in order to evaluate Bezier curves.
-</b>
+<h3>
+  Walk through the ray generation and primitive intersection parts of the rendering pipeline.
+</h3>
 <p>
+    Ray generation is a relatively simple process. We simply scan across the entire screenBuffer (pixel by pixel) and for each pixel we generate a ray pointing directly away from the camera at some angle. This angle is a function of the pixel's screen poisition and FOV parameters of the camera. To actually calculate the direction of the ray we use this equation(x and y are normalized coordinates):
 
-Castelau's algorithm allows us to evaluate Bezier curves by performing a recursive computation, where at each step we take in N control points and output N-1 points, which we compute by lerping between sucessive points in the input list at some value "t" that ranges from 0 to 1. We perform this recursive computation until we have one final point. That point is the point which lies on the Bezier curve at location "t".
+    <img src="images/Screenshot from 2023-03-17 13-56-43.png" align="middle"/> <br>
+
+    We can then normalize this 3D vector to get a direction for our ray that will simulate a camera with a feild of view.
+
+    Note: we also randomize the normalized position of each ray within it's pixel (by sampling randomly within the square area of screen a pixel corresponds to). This ensures that we generate rays that have an equal chance of hitting all the objects behind the area covered by the pixel.
 </p>
 <br>
 
-<b>
-  Take a look at the provided .bzc files and create your own Bezier curve with 6 control points of your choosing. Use this Bezier curve for your screenshots below.
-</b>
+<h3>
+  Explain the triangle intersection algorithm you implemented in your own words.
+</h3>
 <p>
-
+    To calcualte ray-triangle intersections I decided to use the <a href="https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm">Moller Trumbore Algorithm</a> which was mentioned in lecture as a relatively performant method for doing this type of intersection. After seeing the lecture slides mentioning this method I decided to Google it and read more about it. While skimming through the wikipedia page, I found that it has a C++ implementaion of this algorithm, which I then adapted for this project.
 </p>
-<!-- Example of including a single figure -->
-<div align="middle">
-  <img src="images/Screenshot from 2023-02-28 15-54-55.png" align="middle" width="50%">
-</div>
+
+<p>
+  There were a few changes I needed to make from the wikipedia version beyond basic type renaming code cleanup. First, I needed to change the end of the function to take into account the min_t and max_t values of a ray, since the wikipedia implementaion had no concept of that. The other issue was a really nasty one to debug. The original wikipedia version had a division by zero check that checked if some floting point dot product was between two epsilon values, and if so, it was considered effectively zero (indicating the triangle as parallel to the ray) and therefore "no-intersection" is returned. After a lot of difficult debugging I settled on just removing this check. The program works fine without it, which I assume is due to infinity being handled in a reasonable way by the IEEE 754 standard. Thanks  <a href="https://en.wikipedia.org/wiki/William_Kahan">William Kahan</a>!
+</p>
+
+<p>Now, putting the implementation details aside, the way this algorithm works is actually very elegant. First, the actual Moller Trumbore algorithm itself speeds up the intersection calculation by using reusing values between calculations as much as possible. For example, to calculate the t value of the ray, it could just use the ray intersection with plane equation that was described in lecture, but that requires calculating the normal of the triangle, which isn't needed elsewhere, so it's wasteful. Instead, we can calculate t using vector cross products that can be reused for the b1 and b2 values. Allowing us to save on total compute time.
+</p><p>
+  Furtheremore, the wikipedia implementaion takes it a step further by also attempting to early exit as soon as we know there is no intersection, saving some more compute time.The original wikipedia algorithm tried to add an early exit with it's faulty divide by zero check, which I had to remove, but other than that it had two more checks later on in the algorithm checking the values of b1 and b2 and early exits if they are not within the correct range. </p>
 <br>
 
-<b>
-  Show screenshots of each step / level of the evaluation from the original control points down to the final evaluated point. Press <kbd>E</kbd> to step through. Toggle <kbd>C</kbd> to show the completed Bezier curve as well.
-</b>
+<h3>
+  Show images with normal shading for a few small .dae files.
+</h3>
 <!-- Example of including multiple figures -->
 <div align="middle">
   <table style="width:100%">
     <tr align="center">
       <td>
-        <img src="images/P11.png" align="middle" width="400px"/>
-        <figcaption>Level 0</figcaption>
+        <img src="images/1_3_empty.png" align="middle" width="400px"/>
+        <figcaption>CBempty.dae</figcaption>
       </td>
       <td>
-        <img src="images/Screenshot from 2023-02-28 15-51-05.png" align="middle" width="400px"/>
-        <figcaption>Level 1</figcaption>
-      </td>
-    </tr>
-    <br>
-    <tr align="center">
-      <td>
-        <img src="images/Screenshot from 2023-02-28 15-51-12.png" align="middle" width="400px"/>
-        <figcaption>Level 2</figcaption>
-      </td>
-      <td>
-        <img src="images/Screenshot from 2023-02-28 15-51-22.png" align="middle" width="400px"/>
-        <figcaption>Level 3</figcaption>
+        <img src="images/1_3_spheres.png" align="middle" width="400px"/>
+        <figcaption>CBspheres_lambertian.dae</figcaption>
       </td>
     </tr>
-    <br>
     <tr align="center">
       <td>
-        <img src="images/Screenshot from 2023-02-28 15-51-32.png" align="middle" width="400px"/>
-        <figcaption>Level 4</figcaption>
+        <img src="images/1_3_beetle.png" align="middle" width="400px"/>
+        <figcaption>beetle.dae</figcaption>
       </td>
       <td>
-        <img src="images/Screenshot from 2023-02-28 15-51-43.png" align="middle" width="400px"/>
-        <figcaption>Level 5</figcaption>
-      </td>
-    </tr>
-    <br>
-    <tr align="center">
-      <td>
-        <img src="images/P1F.png" align="middle" width="400px"/>
-        <figcaption>Full curve</figcaption>
+        <img src="images/1_3_banana.png" align="middle" width="400px"/>
+        <figcaption>banana.dae</figcaption>
       </td>
     </tr>
   </table>
@@ -137,341 +122,381 @@ Castelau's algorithm allows us to evaluate Bezier curves by performing a recursi
 <br>
 
 
-<b>
-  Show a screenshot of a slightly different Bezier curve by moving the original control points around and modifying the parameter \(t\) via mouse scrolling.
-</b>
-<p>
-  <img src="images/Screenshot from 2023-02-28 15-56-14.png" align="middle" width="400px"/>
-</p>  
-<br>
+<h2 align="middle">Part 2: Bounding Volume Hierarchy (20 Points)</h2>
+<!-- Walk through your BVH construction algorithm. Explain the heuristic you chose for picking the splitting point.
+Show images with normal shading for a few large .dae files that you can only render with BVH acceleration.
+Compare rendering times on a few scenes with moderately complex geometries with and without BVH acceleration. Present your results in a one-paragraph analysis. -->
 
-
-<h3 align="middle">Part 2: Bezier Surfaces with Separable 1D de Casteljau</h3>
-<b>
-  Briefly explain how de Casteljau algorithm extends to Bezier surfaces and how you implemented it in order to evaluate Bezier surfaces.
-</b>
+<h3>
+  Walk through your BVH construction algorithm. Explain the heuristic you chose for picking the splitting point.
+</h3>
 <p>
-    We can compute Bezier surfaces by essentially performing the bezier curve evaluation in two dimentions. First, we evaluate along one dimention at some value "u" and get back a list of points (one for each bezier curve we evaluated). Then, we simply treat that list of points as a new list of control points and evaluate that bezier curve at some other value "v". The final point we get back is the point at coordinate (u, v) on the bezier surface.
+    To contruct my BVH I decided to use the heuristic of the average centroid of all the primitives within the node. I calculated this average at the start of the function, then, later one I count up how many primitives go to each side of the node between all three dimentions that can be split on. Then, I choose the best from those three dimentions and perform the split. Furthermore, to ensure all primitives are oriented in memory in a sane way, I also sort them based on the dimention of the split, ensuring that when I pass their references to later nodes they can be certain all the primitives in that range are for them. (I considered constructing a new primitives vector during this recursive function but this turned out to be far easier and faster).
 </p>
-<br>
 
-
-<b>
-  Show a screenshot of bez/teapot.bez (not .dae) evaluated by your implementation.
-</b>
-<p>
-  <img src="images/Screenshot from 2023-02-28 16-12-27.png" align="middle" width="400px"/>
-</p>
-<br>
-
-
-<h2 align="middle">Section II: Triangle Meshes and Half-Edge Data Structure</h2>
-
-<h3 align="middle">Part 3: Area-Weighted Vertex Normals</h3>
-
-<b>
-  Briefly explain how you implemented the area-weighted vertex normals.
-</b>
-<p>
-    To caluclate the normals I first had to iterate over all of the faces connected to a vertex. To do that I looked at the implementation of the "degree" function for the Vertex class and used the same logic to iterate over the faces. Then, I simply got the position of the two other vertices that make up the triangle in question and then computed the cross product of the two vectors pointing to those vertices from our root vertex. This cross product be definition is the normal of the face multiplied by twice the area of the face. Therefore, I simply added all the cross products from all the faces then simply normalized the final vector to have length 1.
-</p>
-<br>
-
-
-<b>
-  Show screenshots of dae/teapot.dae (not .bez) comparing teapot shading with and without vertex normals. Use <kbd>Q</kbd> to toggle default flat shading and Phong shading.
-</b>
-<p>
-  <div align="middle">
-    <table style="width:100%">
+<h3>
+  Show images with normal shading for a few large .dae files that you can only render with BVH acceleration.
+</h3>
+<!-- Example of including multiple figures -->
+<div align="middle">
+  <table style="width:100%">
     <tr align="center">
       <td>
-        <img src="images/Screenshot from 2023-02-28 16-25-37.png" align="middle" width="400px"/>
-        <figcaption>Flat shading</figcaption>
+        <img src="images/2_2_bunny.png" align="middle" width="400px"/>
+        <figcaption>CBbunny.dae</figcaption>
       </td>
       <td>
-        <img src="images/Screenshot from 2023-02-28 16-25-44.png" align="middle" width="400px"/>
-        <figcaption>Phong shading</figcaption>
+        <img src="images/2_2_CBlucy.png" align="middle" width="400px"/>
+        <figcaption>CBlucy.dae</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/2_2_dragon.png" align="middle" width="400px"/>
+        <figcaption>dragon.dae</figcaption>
+      </td>
+      <td>
+        <img src="images/2_2_max.png" align="middle" width="400px"/>
+        <figcaption>maxplanck.dae</figcaption>
       </td>
     </tr>
   </table>
-  </div>
-</p>
+</div>
 <br>
 
-
-<h3 align="middle">Part 4: Edge Flip</h3>
-<b>
-  Briefly explain how you implemented the edge flip operation and describe any interesting implementation / debugging tricks you have used.
-</b>
+<h3>
+  Compare rendering times on a few scenes with moderately complex geometries with and without BVH acceleration. Present your results in a one-paragraph analysis.
+</h3>
 <p>
-    I decided to implement the operation in place, so that I don't have to deal with creating or deleting any mesh elements. I first iterated over all the half edge elements that would need to be changed (all 6 half edge elemens, 3 from each face). Then, I got the two faces that would need to be altered, and finally I set all the parameters in the mesh elements to point to the new correct values (i.e.  I reset the "halfedge" element of the 4 vertices and 2 faces, then called "setNeighbors" on all 6 halfedges).
-</p>
-<br>
+  Here are the results of some tests I ran rendering scenes with and without BVH acceleration:
 
-
-<b>
-  Show screenshots of the teapot before and after some edge flips.
-</b>
-<p>
-  <div align="middle">
-    <table style="width:100%">
-    <tr align="center">
-      <td>
-        <img src="images/Screenshot from 2023-02-28 16-36-46.png" align="middle" width="400px"/>
-        <figcaption>Before</figcaption>
-      </td>
-      <td>
-        <img src="images/Screenshot from 2023-02-28 16-37-16.png" align="middle" width="400px"/>
-        <figcaption>After</figcaption>
-      </td>
+  <table style="border: 1px solid black;">
+    <tr>
+      <th style="border: 1px solid black;">Model</th>
+      <th style="border: 1px solid black;">No BVH (seconds)</th>
+      <th style="border: 1px solid black;">With BVH (seconds)</th>
+    </tr>
+    <tr>
+      <td style="border: 1px solid black;">beetle.dae</td>
+      <td style="border: 1px solid black;">26.7472</td>
+      <td style="border: 1px solid black;">0.0947</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid black;">cow.dae</td>
+      <td style="border: 1px solid black;">17.8191</td>
+      <td style="border: 1px solid black;">0.0841</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid black;">banana.dae</td>
+      <td style="border: 1px solid black;">7.8749</td>
+      <td style="border: 1px solid black;">0.0541</td>
     </tr>
   </table>
-  </div>
+
+  It's pretty clear from these results that BVH acceleration is much much much faster than the normal linear time intersection algorithm. This makes sense because models like beetle.dae have thousands of triangles (and other more complex models have many many many more). When using the linear time intersection method we have to check against EVERY triangle. With the beetle model this meant I was performing about 940 intersection tests PER RAY. That's an absurd amount of tests. On the other hand, with BVH, I was only doing just under 4 tests on average. That is a more than a 200x decrease. This is because the actual number of triangles in sight of a ray are ussualy very small, and ruling out large swaths of primitives with bounding boxes helps GREATLY reduce the number of operations needed to do intersection tests.
 </p>
 <br>
 
+<h2 align="middle">Part 3: Direct Illumination (20 Points)</h2>
+<!-- Walk through both implementations of the direct lighting function.
+Show some images rendered with both implementations of the direct lighting function.
+Focus on one particular scene with at least one area light and compare the noise levels in soft shadows when rendering with 1, 4, 16, and 64 light rays (the -l flag) and with 1 sample per pixel (the -s flag) using light sampling, not uniform hemisphere sampling.
+Compare the results between uniform hemisphere sampling and lighting sampling in a one-paragraph analysis. -->
 
-<b>
-    Write about your eventful debugging journey, if you have experienced one.
-</b>
+<h3>
+  Walk through both implementations of the direct lighting function.
+</h3>
 <p>
-    Thankfully, implementing this function wasn't too difficult. No noteworthy stuff to say here. The same cannot be said for the next part of this project...
-</p>
-<br>
+    With hemisphere sampling, we calculate the total illumitation on some point in the scene by randomly generating rays going out from the point (by uniformly sampling from the hemisphere located on the point pointing along the normal of that point) and then averaging the light value detected from all the directions. This method does technically work, but it is very very wasteful since it performs ray intersections on rays that aren't even pointing towards a light! 
+  </p>
 
-
-<h3 align="middle">Part 5: Edge Split</h3>
-<b>
-  Briefly explain how you implemented the edge split operation and describe any interesting implementation / debugging tricks you have used.
-</b>
-<p>
-    I implemented the edge split operation in the same style as the flig edge opertaion: make sure to get references to all the mesh elements I need to modify before preforming any modifications. Then performing all the modifications in one go. I made sure to only allocate new mesh elements and to never delete them, to make iterating over the list of edges and performing split operations in the next part easier.
-</p>
-
-<p>I then decided to try and implement edge splitting on boundaries for extra credit, and this is where I faced some challenegs. I kept getting segmentation faults and debugging took a long time. I was able to find the bug in the end by using the editors built in mesh element inspector that listed memory addresses. Using this tool I was able to figure out that I forgot to save a reference to a face before overriding it later, so then when I referenced it I was actually referencing a new and different face. This led to some nasty recursive behavoir that made the program crash somehow (not entirely sure how). Anyways, I got it working in the end, which you can see from the pictures below.</p>
-<br>
-
-
-<b>
-    Show screenshots of a mesh before and after some edge splits. 
-</b>
-<p>
-  <div align="middle">
-    <table style="width:100%">
-    <tr align="center">
-      <td>
-        <img src="images/Screenshot from 2023-02-28 17-36-22.png" align="middle" width="400px"/>
-        <figcaption>Before</figcaption>
-      </td>
-      <td>
-        <img src="images/Screenshot from 2023-02-28 17-36-51.png" align="middle" width="400px"/>
-        <figcaption>After</figcaption>
-      </td>
-    </tr>
-  </table>
-  </div>
-</p>
-<br>
-
-
-<b>
-    Show screenshots of a mesh before and after a combination of both edge splits and edge flips.
-</b>
-<p>
-  <div align="middle">
-    <table style="width:100%">
-    <tr align="center">
-      <td>
-        <img src="images/Screenshot from 2023-02-28 17-37-47.png" align="middle" width="400px"/>
-        <figcaption>Before</figcaption>
-      </td>
-      <td>
-        <img src="images/Screenshot from 2023-02-28 17-39-00.png" align="middle" width="400px"/>
-        <figcaption>After</figcaption>
-      </td>
-    </tr>
-  </table>
-  </div>
-</p>
-<br>
-
-
-<b>
-    Write about your eventful debugging journey, if you have experienced one.
-</b>
-<p>
-    As mentioned above, I ran into some trouble implementing the edge splitting on boundary edges. The bug happened because I was trying to be clever and reuse code between the non-boundary and boundary code. I did this by grouping as much code as I could that would be identical for both cases and moved it to the top of the function, then I added a simple if statement in the bottom. The problem was that the way I had designed the code I forgot to take into account that I was resuing the halfedge elements to prevent deletion. And in doing so I had overriden the face element of the halfedge that served as a boundary in that condition. This meant that later in the function when I called "setNeighbors" on the two halfedge elements that were supposed to be the new boundary, the face I gave them (by calling the "face" function of my original halfedge element) didn't work.
-</p>
-
-<p>To find this bug I honestly just tried a BUNCH of things and kept performing splits on edges and inspecting the memory addresses of the elements. Since the segfaults didn't happen all the time I could sometimes read the properties of the new mesh elements and based off of that I figured out that the face pointer wasn't correct.</p>
-<br>
-
-<b>
-    If you have implemented support for boundary edges, show screenshots of your implementation properly handling split operations on boundary edges.
-</b>
-<p>
-    I implemented boundary edge splitting and included pictures in the above sections.
-</p>
-<br>
-
-
-<h3 align="middle">Part 6: Loop Subdivision for Mesh Upsampling</h3>
-<b>
-  Briefly explain how you implemented the loop subdivision and describe any interesting implementation / debugging tricks you have used.
-</b>
-<p>
-    I implemented loop subdivision in the way suggested to us in the project description, and the comments in the project:
-
-    <ol>
-      <li>Iterate over all the existing vertices and calculate their new positions based on the given formulas, then store this value in the vertex's "newPosition" variable.</li>
-      <li>Loop over all the edges in the mesh and compute the postion of the vertex that is to be created in the middle of them later, then store this value in their "newPosition" variable.</li>
-      <li>Loop over all the edges and perform the split operation, then set the position of the new vertex to the one stored in the edge.</li>
-      <li>Flip all edges in the mesh that connect an old vertex to a new one</li>
-      <li>Set the position of all the old vertices to the value stored in their "newPosition" variable.</li>
-    </ol>
-</p>
-<br>
-
-
-<b>
-  Take some notes, as well as some screenshots, of your observations on how meshes behave after loop subdivision. What happens to sharp corners and edges? Can you reduce this effect by pre-splitting some edges?
-</b>
-<p>
-    Sharp corners get smoothed out considerably. As we can see from this example of the algorithm being applied to the cube model over and over again:
+  <p>To fix this we can use importance sampling, where we find the illuminance at a point by sampling some number of times across the domain of vectors that are pointing towards the light rather than all vectors in a hemisphere. This allows us to use far far fewer samples per light while getting a MUCH better estimate for the illuminance. To see this look at the images below:</p>
     
-    <div align="middle">
-      <table style="width:100%">
-      <tr align="center">
-        <td>
-          <img src="images/Screenshot from 2023-02-28 18-02-42.png" align="middle" width="400px"/>
-          <figcaption>0 Invokations</figcaption>
-        </td>
-        <td>
-          <img src="images/Screenshot from 2023-02-28 18-02-50.png" align="middle" width="400px"/>
-          <figcaption>1 Invokation</figcaption>
-        </td>
-      </tr>
-      <tr align="center">
-        <td>
-          <img src="images/Screenshot from 2023-02-28 18-02-55.png" align="middle" width="400px"/>
-          <figcaption>2 Invokations</figcaption>
-        </td>
-        <td>
-          <img src="images/Screenshot from 2023-02-28 18-03-14.png" align="middle" width="400px"/>
-          <figcaption>3 Invokations</figcaption>
-        </td>
-      </tr>
-    </table>
-    </div>
 
-    We can reduce this effect by first splitting all the edges once (to reduce the assymetry of the final result), then performing loop subdivision without update vertex positions just one time. Here is an example of performing loop subdivision normally on a cube that was preprocessed this way:
 
-    <div align="middle">
-      <table style="width:100%">
-      <tr align="center">
-        <td>
-          <img src="images/Screenshot from 2023-02-28 18-16-44.png" align="middle" width="400px"/>
-          <figcaption>0 Invokations</figcaption>
-        </td>
-        <td>
-          <img src="images/Screenshot from 2023-02-28 18-16-50.png" align="middle" width="400px"/>
-          <figcaption>1 Invokation</figcaption>
-        </td>
-      </tr>
-      <tr align="center">
-        <td>
-          <img src="images/Screenshot from 2023-02-28 18-16-55.png" align="middle" width="400px"/>
-          <figcaption>2 Invokations</figcaption>
-        </td>
-        <td>
-          <img src="images/Screenshot from 2023-02-28 18-17-15.png" align="middle" width="400px"/>
-          <figcaption>3 Invokations</figcaption>
-        </td>
-      </tr>
-    </table>
-    </div>
+<h3>
+  Show some images rendered with both implementations of the direct lighting function.
+</h3>
+<!-- Example of including multiple figures -->
+<div align="middle">
+  <table style="width:100%">
+    <!-- Header -->
+    <tr align="center">
+      <th>
+        <b>Uniform Hemisphere Sampling</b>
+      </th>
+      <th>
+        <b>Light Sampling</b>
+      </th>
+    </tr>
+    <br>
+    <tr align="center">
+      <td>
+        <img src="images/3_2_hemisphere.png" align="middle" width="480px"/>
+        <figcaption>CBbunny.dae</figcaption>
+      </td>
+      <td>
+        <img src="images/3_2_importance.png" align="middle" width="480px"/>
+        <figcaption>CBbunny.dae</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr align="center">
+      <td>
+        <img src="images/3_2_hemisphere_spheres.png" align="middle" width="480px"/>
+        <figcaption>CBspheres_lambertian.dae</figcaption>
+      </td>
+      <td>
+        <img src="images/3_2_importance_spheres.png" align="middle" width="480px"/>
+        <figcaption>CBspheres_lambertian.dae</figcaption>
+      </td>
+    </tr>
+    <br>
+  </table>
+</div>
+<br>
+
+<h3>
+  Focus on one particular scene with at least one area light and compare the noise levels in <b>soft shadows</b> when rendering with 1, 4, 16, and 64 light rays (the -l flag) and with 1 sample per pixel (the -s flag) using light sampling, <b>not</b> uniform hemisphere sampling.
+</h3>
+<!-- Example of including multiple figures -->
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/3_3_1.png" align="middle" width="240px"/>
+        <figcaption>1 Light Ray (CBbunny.dae)</figcaption>
+      </td>
+      <td>
+        <img src="images/3_3_4.png" align="middle" width="240px"/>
+        <figcaption>4 Light Rays (CBbunny.dae)</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/3_3_16.png" align="middle" width="240px"/>
+        <figcaption>16 Light Rays (CBbunny.dae)</figcaption>
+      </td>
+      <td>
+        <img src="images/3_3_64.png" align="middle" width="240px"/>
+        <figcaption>64 Light Rays (CBbunny.dae)</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<p>
+    The noise on places like the walls, where the point is exposed to the entire light source and where the illuminance it recives is approximately the same from all points in that light source, one or two samples are enough to get an accurate estimate for that pixels total illuminance.
+</p>
+<p>On the other hand, in places like shadow borders, where points are partially blocked from the light, and therefore only get illuminated by part of it, are going to get wildly different illuminance values each sample depending on if that particular ray was blocked by the object or not. This means that for the value to converge have to take many many samples.</p>
+<br>
+
+<h3>
+  Compare the results between uniform hemisphere sampling and lighting sampling in a one-paragraph analysis.
+</h3>
+<p>
+    While these two methods are both technically correct, because they both converege to the correct color value for each pixel, importance sampling is easily far far better than hemisphere sampling. Hemisphere sampling is very wasteful and performs ray intersection queries in directions that just don't matter. Importance sampling ensures that when we perform a ray intersection query it's because there actually is some light source in that direction, making it just better.
 </p>
 <br>
 
 
-<b>
-  Load dae/cube.dae. Perform several iterations of loop subdivision on the cube. Notice that the cube becomes slightly asymmetric after repeated subdivisions. Can you pre-process the cube with edge flips and splits so that the cube subdivides symmetrically? Document these effects and explain why they occur. Also explain how your pre-processing helps alleviate the effects.
-</b>
-<p>
-    This assymetry happens because the original model is assymetric (due to each face being made up of only 2 triangles instead of a more symmetric but less efficvient 4). Here is loop subdivision after performing this simple preprocessing:
+<h2 align="middle">Part 4: Global Illumination (20 Points)</h2>
+<!-- Walk through your implementation of the indirect lighting function.
+Show some images rendered with global (direct and indirect) illumination. Use 1024 samples per pixel.
+Pick one scene and compare rendered views first with only direct illumination, then only indirect illumination. Use 1024 samples per pixel. (You will have to edit PathTracer::at_least_one_bounce_radiance(...) in your code to generate these views.)
+For CBbunny.dae, compare rendered views with max_ray_depth set to 0, 1, 2, 3, and 100 (the -m flag). Use 1024 samples per pixel.
+Pick one scene and compare rendered views with various sample-per-pixel rates, including at least 1, 2, 4, 8, 16, 64, and 1024. Use 4 light rays.
+You will probably want to use the instructional machines for the above renders in order to not burn up your own computer for hours. -->
 
-    <div align="middle">
-      <table style="width:100%">
-      <tr align="center">
-        <td>
-          <img src="images/Screenshot from 2023-02-28 18-22-20.png" align="middle" width="400px"/>
-          <figcaption>0 Invokations</figcaption>
-        </td>
-        <td>
-          <img src="images/Screenshot from 2023-02-28 18-22-25.png" align="middle" width="400px"/>
-          <figcaption>1 Invokation</figcaption>
-        </td>
-      </tr>
-      <tr align="center">
-        <td>
-          <img src="images/Screenshot from 2023-02-28 18-22-33.png" align="middle" width="400px"/>
-          <figcaption>2 Invokations</figcaption>
-        </td>
-        <td>
-          <img src="images/Screenshot from 2023-02-28 18-22-38.png" align="middle" width="400px"/>
-          <figcaption>3 Invokations</figcaption>
-        </td>
-      </tr>
-    </table>
-    </div>
+<h3>
+  Walk through your implementation of the indirect lighting function.
+</h3>
+<p>
+    I implemented this function recursively (because I'm not insane) where the base case is just the one_bounce_radiance function from the last part. This allows me to define my base case at the top of the function (i.e. if the maximum ray depth was reached or if the coin flip "failed"). Then the rest of the function just calls sample_f on the intersection's bsdf and generates a ray from hit_p in the direction of wi (in object space). Finnally, I just perform an intersection test on the ray and add the rest of the indirect illumination by making a recusive call to the at_least_one_bounce_radiance function and multiplying the result by the proper values before adding it to L_out.
+</p>
+<br>
+
+<h3>
+  Show some images rendered with global (direct and indirect) illumination. Use 1024 samples per pixel.
+</h3>
+<!-- Example of including multiple figures -->
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/4_2_bunny.png" align="middle" width="400px"/>
+        <figcaption>CBbunny.dae</figcaption>
+      </td>
+      <td>
+        <img src="images/4_2_spheres.png" align="middle" width="400px"/>
+        <figcaption>CBspheres_lambertian.dae</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<br>
+
+<h3>
+  Pick one scene and compare rendered views first with only direct illumination, then only indirect illumination. Use 1024 samples per pixel. (You will have to edit PathTracer::at_least_one_bounce_radiance(...) in your code to generate these views.)
+</h3>
+<!-- Example of including multiple figures -->
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/4_3_direct.png" align="middle" width="400px"/>
+        <figcaption>Only direct illumination (CBbunny.dae)</figcaption>
+      </td>
+      <td>
+        <img src="images/4_3_indirect.png" align="middle" width="400px"/>
+        <figcaption>Only indirect illumination (CBbunny.dae)</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<br>
+<p>
+    The direct illumination has the brightest spots but also the darkest. The indirect illumination has a much more constant illumination across the image (aside from the dark spot that is the light source). This makes perfect sense, since with direct illumination we include all the spots with the most light and the ones that are completely hidden from the light source. One the other hand, in the indirect illumination we can see all the color coming off of the walls and all the light that still makes it into the nooks and crannies of the model where direct lighting doesn't exist.
+</p>
+<br>
+
+<h3>
+  For CBbunny.dae, compare rendered views with max_ray_depth set to 0, 1, 2, 3, and 100 (the -m flag). Use 1024 samples per pixel.
+</h3>
+<!-- Example of including multiple figures -->
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/4_4_0.png" align="middle" width="400px"/>
+        <figcaption>max_ray_depth = 0 (CBbunny.dae)</figcaption>
+      </td>
+      <td>
+        <img src="images/4_4_1.png" align="middle" width="400px"/>
+        <figcaption>max_ray_depth = 1 (CBbunny.dae)</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/4_4_2.png" align="middle" width="400px"/>
+        <figcaption>max_ray_depth = 2 (CBbunny.dae)</figcaption>
+      </td>
+      <td>
+        <img src="images/4_4_3.png" align="middle" width="400px"/>
+        <figcaption>max_ray_depth = 3 (CBbunny.dae)</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/4_4_100.png" align="middle" width="400px"/>
+        <figcaption>max_ray_depth = 100 (CBbunny.dae)</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<br>
+<p>
+    As we can see, when we increse the maximum ray depth we get images that portray the scene much more accurately. When m=0, we obviously only directly see the light source, at m=1, we just see the pixels directly lit by the light source, and it's at m=2 when things finnaly get interesting. Now, we can see how color from the walls is bleeding onto the bunny and the other walls. With m=3, this effect is far more pronouced. But when we crank it up to m=100 we see that there isn't too much difference between this and m=3 (at least not to my untrained eye). This shows us that there are diminishing returns to increasing max ray depth.
+</p>
+<br>
+
+<h3>
+  Pick one scene and compare rendered views with various sample-per-pixel rates, including at least 1, 2, 4, 8, 16, 64, and 1024. Use 4 light rays.
+</h3>
+<!-- Example of including multiple figures -->
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/4_5_1.png" align="middle" width="480px"/>
+        <figcaption>1 sample per pixel (CBbunny.dae)</figcaption>
+      </td>
+      <td>
+        <img src="images/4_5_2.png" align="middle" width="480px"/>
+        <figcaption>2 samples per pixel (CBbunny.dae)</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/4_5_4.png" align="middle" width="480px"/>
+        <figcaption>4 samples per pixel (CBbunny.dae)</figcaption>
+      </td>
+      <td>
+        <img src="images/4_5_8.png" align="middle" width="480px"/>
+        <figcaption>8 samples per pixel (CBbunny.dae)</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/4_5_16.png" align="middle" width="480px"/>
+        <figcaption>16 samples per pixel (CBbunny.dae)</figcaption>
+      </td>
+      <td>
+        <img src="images/4_5_64.png" align="middle" width="480px"/>
+        <figcaption>64 samples per pixel (CBbunny.dae)</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/4_5_1024.png" align="middle" width="480px"/>
+        <figcaption>1024 samples per pixel (CBbunny.dae)</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<br>
+<p>
+    As our sample counts increase the noise in the image decreases (which makes intutive sense, since sampling a random variable more times means our average is gonna be closer to the true mean). What's interesting to note in these images is how much of an increase in quality we see between all the steps. In the lower end as we increase samples the quality increases dramatically (which is expected), but we also see the quality increase quite noticeably between 16 and 64 samples, and most strikingly 64 to 1024. While diminishing returns are also in effect here, increasing samples increases quality only up to a point, but it's surprising that it takes over 1000 samples per pixel for the image to look truly "clear" (at least to my eye). I was honestly surprised that it takes this many samples, but I guess that's why Disney has all those massive render farms.
 </p>
 <br>
 
 
-<b>
-    If you have implemented any extra credit extensions, explain what you did and document how they work with screenshots.
-</b>
+<h2 align="middle">Part 5: Adaptive Sampling (20 Points)</h2>
+<!-- Explain adaptive sampling. Walk through your implementation of the adaptive sampling.
+Pick one scene and render it with at least 2048 samples per pixel. Show a good sampling rate image with clearly visible differences in sampling rate over various regions and pixels. Include both your sample rate image, which shows your how your adaptive sampling changes depending on which part of the image you are rendering, and your noise-free rendered result. Use 1 sample per light and at least 5 for max ray depth. -->
+
+<h3>
+  Explain adaptive sampling. Walk through your implementation of the adaptive sampling.
+</h3>
 <p>
-    I tried implementing loop subdivision on meshes with boundaries for extra credit. Since I got it working for the split edges algorithm I was already halfway there, so I fugred I would try. I made some minor modifications to my initial loop subdivision algorithm to work with boundaries, and then I got to the final step: modifiying my vertex update position code to properly calculate the new position of vertices on a boundary.
+    At it's core, adaptive sampling is actually farily simple. For every ray sample we calculate, we keep a running sum of all the illuminances and square illuminances. Then, every <em>samplesPerBatch</em> samples just calculate the mean and variance of our sample illuminances up to this point. The formulas for this were provided in the project description. Finnally, we perform what is effectively a z-test with a hardcoded value of 95% confidence. If our samples have converged, then we just stop sampling and return the pixel color so far.
 </p>
 
-<p>I tried reading the linked paper but after much time and lots of confusion I gave up trying to get the formula from there. However, I didn't give up and decided to try and implement my own version of it, even if it isn't 100% correct.</p>
+<p>
+  In my implementaion I made one very simple optimization by removing the need for square roots. In the equations given to us in the project description there are sqaure roots that need to be calcualted. By squaring both sides of the inequality we can remove the need for this very slow computation. Next, I was also able to reduce the total number of divisions to two, by grouping together denominators. This has a very small effect on the runtime of the whole program, but it's nice to do these basic optimizations since they take very little time.
+</p>
 
-<p>When runnning the algorithm with my code at its current state, I was getting an issue where the edge along a boundary of a model would get "pulled" towards the model when performing loop subdivision. Here is a before and after image of performing loop subdivision on the "beetle.dae" model.</p>
+<p>In the images, below, we can see adaptive sampling at work, allowing us to stop sampling the pixels on most of the walls and the floor realtively early (along with some of the pixels on the bunny's head). These are the brightest pixels on the screen and the ones with direct illumination. This means that the effects of indeirect illumination (the difficult to calculate stuff) are much smaller. Therefore, if we stop sampling them early, their color really won't change much anyways, so no noise is being added in (beyong the noise tolerance we set that is). On the other hand, darker areas that are just lit with indirect illumination are gonna take much longer to converge, hence they are in red here.
+</p>
+<br>
 
+<h3>
+  Pick two scenes and render them with at least 2048 samples per pixel. Show a good sampling rate image with clearly visible differences in sampling rate over various regions and pixels. Include both your sample rate image, which shows your how your adaptive sampling changes depending on which part of the image you are rendering, and your noise-free rendered result. Use 1 sample per light and at least 5 for max ray depth.
+</h3>
+<!-- Example of including multiple figures -->
 <div align="middle">
   <table style="width:100%">
-  <tr align="center">
-    <td>
-      <img src="images/Screenshot from 2023-02-28 18-28-48.png" align="middle" width="400px"/>
-      <figcaption>Before</figcaption>
-    </td>
-    <td>
-      <img src="images/Screenshot from 2023-02-28 18-28-56.png" align="middle" width="400px"/>
-      <figcaption>After</figcaption>
-    </td>
-  </tr>
+    <tr align="center">
+      <td>
+        <img src="images/5_2_bunny.png" align="middle" width="400px"/>
+        <figcaption>Rendered image (CBbunny.dae)</figcaption>
+      </td>
+      <td>
+        <img src="images/5_2_bunny_rate.png" align="middle" width="400px"/>
+        <figcaption>Sample rate image (CBbunny.dae)</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/5_2_spheres.png" align="middle" width="400px"/>
+        <figcaption>Rendered image (CBspheres_lambertian.dae)</figcaption>
+      </td>
+      <td>
+        <img src="images/5_2_spheres_rate.png" align="middle" width="400px"/>
+        <figcaption>Sample rate image (CBspheres_lambertian.dae)</figcaption>
+      </td>
+    </tr>
   </table>
 </div>
-
-<p>To fix this, I decided to try a bit of a workaround: When calculating the new position of vertices on the boundary, I would calculate the normal of that vertex, then project the "movement" of the vertex onto the normal, before applying it to the vertex. This essentially "pins" the vertex to the edge and prevents it from getting "pulled" inwards. This method is almost certainly wrong, but when running it on the beetle model it seems to work alright, so I figured it might be worth some partial credit.</p>
-
-<div align="middle">
-  <table style="width:100%">
-  <tr align="center">
-    <td>
-      <img src="images/Screenshot from 2023-02-28 18-32-40.png" align="middle" width="400px"/>
-      <figcaption>Before</figcaption>
-    </td>
-    <td>
-      <img src="images/Screenshot from 2023-02-28 18-32-48.png" align="middle" width="400px"/>
-      <figcaption>After (with vertex "pinning")</figcaption>
-    </td>
-  </tr>
-  </table>
-</div>
-
 <br>
 
 
