@@ -1,169 +1,262 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
-<style>  
-    div.padded {  
-      padding-top: 0px;  
-      padding-right: 100px;  
-      padding-bottom: 0.25in;  
-      padding-left: 100px;  
-    }  
-  </style> 
-<title>Shahar Sandhaus  |  CS 184</title>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Mesh Editor</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<link rel="stylesheet" type="text/css" href="style.css" media="screen" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
 </head>
+
+
 <body>
-<br />
-<h1 align="middle">Assignment 3-2: Additional Features to PathTracer</h1>
-    <h2 align="middle">Shahar Sandhaus</h2>
-    <h2 align="middle"><a href="https://sharhar.github.io/cs184writeup/">https://sharhar.github.io/cs184writeup/</a></h2>
 
-    <div class="padded">
-        <h3 align="middle">Part 1. Mirror and Glass Materials</h3>
-
-        <p><b>
-            Show a sequence of six images of scene `CBspheres.dae` rendered with `max_ray_depth` set to 0, 1, 2, 3, 4, 5, and 100. The other settings should be at least 64 samples per pixel and 4 samples per light. Make sure to include all screenshots. Point out the new multibounce effects that appear in each image and explain how these bounce numbers relate to the particular effects that appear. Make sure to include all screenshots.
-        </b></p>
-        <p>
-
-        <table style="width:100%">
-
-        <tr align="center">
-            <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
-                <img src="images/1_0.png" align="center" width="400px"/>
-                <figcaption> <strong>Max Ray Depth = 0</strong> </figcaption>
-                <p>At ray depth zero, we don't see anything other than the light source, as expected.</p>
-            </td>
-
-            <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
-                <img src="images/1_1.png" align="center" width="400px"/>
-                <figcaption> <strong>Max Ray Depth = 1</strong> </figcaption>
-                <p>At ray depth one, the walls appear as diffuse materials (as we saw before). However, this time the spheres still remain black except for the direct reflection from the light source. This is because at this ray depth no rays can actually bounce off of the spheres yet, so we only see the effects of direct lighting. In this case, only parts of the spheres that directly reflect light from the light source are lit.</p>
-            </td>
-        </tr>
-
-        <tr align="center">
-            <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
-                <img src="images/1_2.png" align="center" width="400px"/>
-                <figcaption> <strong>Max Ray Depth = 2</strong> </figcaption>
-                <p>At ray depth two, the reflecting sphere is finnaly not mostly black. This is because it can finnaly reflect rays off of it and get back the direct illumination of the room. This is why the bottom of the reflected sphere is still black while the floor itself is not. The scene we see reflected in the reflecting sphere is essentially always "one ray behind" the actual scene. This is because the ray had to first bounce off the sphere, then back onto the scene. This is why the glass sphere appears completely black in the reflection of it on the reflecting sphere.</p>
-
-                <p>On the other hand, the glass sphere is still mostly dark, but now a faint shadow of the room can be seen. This is because glass still reflects light a little bit, so we are also just seeing the reflected version of the room. However, this time it's much darker because most of the light passed through the sphere. The contribution of those rays will only be seen in the next image, because for now they are inside the glass sphere.</p>
-            </td>
-
-            <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
-                <img src="images/1_3.png" align="center" width="400px"/>
-                <figcaption> <strong>Max Ray Depth = 3</strong> </figcaption>
-                
-                <p>At ray depth three, the reflecting sphere is now showing a reflected image of the room with an effective ray depth of two, so there is a bit of global illumination, but not much. Furthermore, the reflected glass sphere is not completely black anymore, because we can now see the reflections of the room's lighting on it.</p>
-                
-                <p>The glass sphere's color on the other hand is now almost completely made up of refracted light. Now that the ray depth is three, the rays can completely pass through the sphere and capture the direct lighting of the walls. Since we are looking at a "head on" angle, the glass is mostly acting as a refractive material, so the contributions of the refracted light completely washes away the reflected light. The reflections are still there, but now we effectively can't see them because they are too faint.</p>
-                
-                <p>One final effect we see now is a bright spot under the glass sphere. This is because the light coming from the light source had time to pass through the glass and shine on that spot on the ground.</p>
-                
-            </td>
-        </tr>
-
-        <tr align="center">
-            <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
-                <img src="images/1_4.png" align="center" width="400px"/>
-                <figcaption> <strong>Max Ray Depth = 4</strong> </figcaption>
-                
-                <p>At ray depth four, the reflected scene in the reflecting sphere is brighter, due to more contributions from global illumination. Furtheremore, the reflected glass sphere is now actually blue from the refracted light.</p>
-                
-                <p>The glass sphere is mostly the same, except for that the image is noiser there than before. This is because now global illumination is being taken into effect, and it causes the sampled image to have higher variance.</p>
-                
-                <p>Another cool effect here is that there is now a bright spot on the blue wall on the right. This is from the light that got reflected off the reflective sphere, then got refracted through the glass sphere, and is now hitting the wall.</p>
-                
-            </td>
-
-            <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
-                <img src="images/1_5.png" align="center" width="400px"/>
-                <figcaption> <strong>Max Ray Depth = 5</strong> </figcaption>
-                <p>The scene is now a bit brighter again due to more contributions from global illumination, but other than that, it looks about the same. No new multibounce effects.</p>
-            </td>
-            
-        </tr>
-
-        <tr align="center">
-
-            <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
-                <img src="images/1_100.png" align="center" width="400px"/>
-                <figcaption> <strong>Max Ray Depth = 100</strong> </figcaption>
-                <p>The scene is now again a little bit brighter, and also noticeably more noisy. This is because the ray depth was dramatically increased (therefore increasing the variance of the underlying sampling function of the scene) without increasing the sample count to offset it.</p>
-            </td>
-            
-        </tr>
-
-        </table>
-            
-        </p>
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2017</h1>
+<h1 align="middle">Project 4: Cloth Simulator</h1>
+<h2 align="middle">Shahar Sandhaus, CS184 - Psring 2023</h2>
+<h2 align="middle">Website: <a href="https://sharhar.github.io/cs184writeup/">https://sharhar.github.io/cs184writeup/</a></h2>
 
 
-        <h3 align="middle">Part 2. Microfacet Material</h3>
-        <p><b>
-            Show a screenshot sequence of 4 images of scene `CBdragon_microfacet_au.dae` rendered with $\alpha$ set to 0.005, 0.05, 0.25 and 0.5. The other settings should be at least 128 samples per pixel and 1 samples per light. The number of bounces should be at least 5. Describe the differences between different images. Note that, to change the $\alpha$, just open the .dae file and search for `microfacet`.
-        </b></p>
-        <p>
-            <table style="width:100%">
-            <tr align="center">
-                <td>
-                    <img src="images/2_005.png" align="center" width="400px"/>
-                    <figcaption> <strong>alpha = 0.005</strong> </figcaption>
-                </td>
-                <td>
-                    <img src="images/2_05.png" align="center" width="400px"/>
-                    <figcaption> <strong>alpha = 0.05</strong> </figcaption>
-                </td>
-            </tr>
-            <tr align="center">
-                <td>
-                    <img src="images/2_25.png" align="center" width="400px"/>
-                    <figcaption> <strong>alpha = 0.25</strong> </figcaption>
-                </td>
-                <td>
-                    <img src="images/2_5.png" align="center" width="400px"/>
-                    <figcaption> <strong>alpha = 0.5</strong> </figcaption>
-                </td>
-            </tr>
-            </table>
-        </p>
-        <br>
-        <p><b>
-            Show two images of scene `CBbunny_microfacet_cu.dae` rendered using cosine hemisphere sampling (default) and your importance sampling. The sampling rate should be fixed at 64 samples per pixel and 1 samples per light. The number of bounces should be at least 5. Briefly discuss their difference.
-        </b></p>
-        <p>
-            <table style="width:100%">
-                <tr align="center">
-                    <td>
-                        <img src="images/2_hem.png" align="center" width="400px"/>
-                        <figcaption> <strong>Hemisphere Sampling</strong> </figcaption>
-                    </td>
-                    <td>
-                        <img src="images/2_imp.png" align="center" width="400px"/>
-                        <figcaption> <strong>Importance Sampling</strong> </figcaption>
-                    </td>
-                </tr>
-            </table>
+<br><br>
 
-            Just like last project where we compared hemisphere sampling to importance sampling when calculating the direct illumination on a specfic point, the importance sampling is MUCH better. With the same number of samples, we are able to converge on the correct value MUCH quicker.
-        </p>
-        <br>
-        <p><b>
-            Show at least one image with some other conductor material, replacing `eta` and `k`. Note that you should look up values for real data rather than modifying them arbitrarily. Tell us what kind of material your parameters correspond to. 
-        </b></p>
-        <p>
-            <img src="images/2_platinum.png" align="center" width="400px"/>
-            <figcaption> <strong>Platinum Dragon</strong></figcaption>
-            <figcaption> <em>eta = (0.46138 0.46608 0.58870)</em></figcaption>
-            <figcaption> <em>k = (5.9022 5.0942 3.9742)</em></figcaption>
+<div>
 
-            These parameters correspond to platinum. I honestly could not tell the difference between this and aluminum, but these were the parameters the website gave me.
-        </p>
-        <br>
+<h2 align="middle">Overview</h2>
+<p>In this project, I implemented the physics required to simulate a piece of cloth, and it's interactions with itself and the world. Furthermore, I also implemented different rasterization based rendering techniques in GLSL shaders to do things like add bumps and map textures to the cloth. Since I have a lot of OpenGL and GLSL experience, that part of the project was not very novel. However, the physics simulations were completely new to me, and very very interesting. I always wondered how game developers implemented these types of physics systems, since when I tried to make my own years ago I failed completely. So this knowledge is really cool and one day I hope to use it to make my own small physics engine.</p>
 
-    </div>
+<h2 align="middle">Part I: Masses and springs</h2>
+
+<p>I decided to implement the grid building code by have three loops. I first created a 2D boolean array that I initilized to false which has the dimentions of the grid, then I loop through all the pinned locations and set the values in the array to true if it's pinned. This allowed to me to then loop through all the grid indicies and create the point masses very easily, by directly indexing into my boolean array to query if a point mass is pinned, which is much faster than searching the array per point mass. Then, finnally, I have one last loop that goes through all the grid positiions again and adds in all the springs.</p>
+
+<table style="width:100%">
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 14-47-44.png" align="center" width="400px"/>
+            <figcaption> <strong>Without Shearing Constraints</strong> </figcaption>
+        </td>
+
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 14-51-38.png" align="center" width="400px"/>
+            <figcaption> <strong>Only shearing constraints</strong> </figcaption>        </td>
+    </tr>
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 14-47-22.png" align="center" width="400px"/>
+            <figcaption> <strong>All constraints</strong> </figcaption>
+        </td>
+    </tr>
+</table>
+
+<h2 align="middle">Part II: Simulation via numerical integration</h2>
+
+<p>This part was very simple to implement. I started by creating a variable called total_external, and set it to the sum of all the external forces. Then, I simply set the force of all the point masses to that initial value. I then looped through the springs and added their contributions using Hooke's Law, making sure to scale the force appropriately depending on the spring type. After that I implement Verlet integration by looping over the point masses again and calculating their new position using the given formula. Finally, I added code at the end that loops through the springs and ensures that none of them are extending by more than 10% (This was done by looping through them one by one, and altering the positions of the point masses connected to the spring to meet the constraint, making sure to only apply the force to points that are not pinned).</p>
+
+<p>Changing the value of the spring constant changes the "stiffness" of the cloth. This means that for very low ks the cloth is very very stretchable, while with a high ks the cloth stretches far less is behaves stiffer.</p>
+
+<p>Density seems to also effect "stiffness", where a higher density makes the cloth stretch less. This makes sense, since a denser cloth is a cloth that is made oup of more atoms that are all connected to each other, so their combined pull force would be stronger.</p>
+
+<p>Increasing damping greatly reduces vibrations in the cloth, while decreasing it makes the vibrations much more present. This makes sense because damping represents the internal friction forces inside the cloth, and as those forces increase, cloth movement decreases.</p>
+
+<img src="images/Screenshot from 2023-04-12 15-01-05.png" align="center" width="400px"/>
+
+<h2 align="middle">Part III: Handling collisions with other objects</h2>
+
+<p>I implemented object collision by implementing the given formulas for sphere and plane collision, calculating tangent vectors and applying corrections to the position of a point mass if it has passed through the surface of the object. I implemented the "passed through object" check by projecting the point's position to the normal vector of the surface at the tangent point, then seeing which side of the normal it was projected to (i.e. is the projection positive or negative). Finally, I added code to loop through all the points, and for each point to loop through all the collision objects and call their "collide" method on the point mass.</p>
+
+<p>Varying the spring constant value of the cloth expectedly changed it's stiffness. The cloth It seems to stay at rest if I calculate the tangent point using last_position rather than position. But The spec says to use position. Anyway, if I use this last_position hack, the image is more jagged and the cloth has some self-intersections.with the very high spring constant bends far less over the sphere and extends downwards less, while the cloth with the low spring constant extends down a lot more due to the graviational force being stronger relative to the cloth's internal forces.
+</p>
+
+<p>Note: My cloth falls onto the sphere, and comes to a close rest, but eventually always slides off, so these images where taken when the simulation was paused in the "near-rest" state.</p>
+
+<table style="width:100%">
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 15-18-45.png" align="center" width="400px"/>
+            <figcaption> <strong>ks = 5000</strong> </figcaption>
+        </td>
+
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 15-18-59.png" align="center" width="400px"/>
+            <figcaption> <strong>ks = 50000</strong> </figcaption>        </td>
+    </tr>
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 15-19-10.png" align="center" width="400px"/>
+            <figcaption> <strong>ks = 500</strong> </figcaption>
+        </td>
+
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 15-23-59.png" align="center" width="400px"/>
+            <figcaption> <strong>Cloth on plane (using bump mapping to make cloth visible on the plane surface)</strong> </figcaption>
+        </td>
+    </tr>
+</table>
+
+<h2 align="middle">Part IV: Handling self-collisions</h2>
+
+<p>This part of the project was by far the hardest for me. I started by implementing a spacial hash function that calculates the w,h, and t values as described in the spec, then I took the floor of the point position divided by w/h/t (depending on the axis). This gave me 3 integers which can be though of as indices into a 3D array of spacial hashes, so I simply returned what would be the "1D" index of the 3D array (as in, I returned z * grid_width * grid_height + y * grid_width + x) where I calculated the grid sizes as the number of points in that axis * 3 (since we are multiplying the w/h/t values by 3).</p>
+
+<p>After I did that, I moved on to building the spacial hash map. This part was relatively easy. I just looped through all the point masses in the scene and calculated their hash_position, then added that point to the map element with that key (creating new std::vertex instances if the key isn't in the map yet).</p>
+
+<p>Finally, I implemented self collision by calculating the spacial hash of the point mass, getting the corresponding vector at that key, then looping through all the elements in that vector (except for the point mass itself) and applying the position corrections if a point is too close.</p>
+
+<p>However, this is where things go south. Because my implementation just DID NOT WORK. The cloth would fall on the plane and the points would "react" to being pushed together, but they wouldn't move in unison and it cause the cloth to intersect itself. I spent the last day debugging it trying to figure out what I did wrong. After almost completely giving up, I tried one final thing. Even though the spec doesn't call for it, I decided to expand my "self collision" search to points that hash to the same location, and points in the 26 neighboring blocks (since 3x3x3 - 1 = 26). This obviously dramatically slowed down the simulation, however, it seemed to fix the bug. I am not sure if I made a mistake elsewhere and this is correcting for that somehow, but whatever the cause is, this seems to fix it.</p>
+
+<table style="width:100%">
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 18-55-14.png" align="center" width="400px"/>
+            <figcaption> <strong>Start of fall</strong> </figcaption>
+        </td>
+
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 18-55-20.png" align="center" width="400px"/>
+            <figcaption> <strong>A little further in the fall, points are reacting to each other</strong> </figcaption>        </td>
+    </tr>
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 18-55-26.png" align="center" width="400px"/>
+            <figcaption> <strong>Cloth is starting to fold over itself</strong> </figcaption>
+        </td>
+
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 18-55-52.png" align="center" width="400px"/>
+            <figcaption> <strong>Cloth has "rested" on the plane (still bouncing on the plane a bit, but mostly still)</strong> </figcaption>
+        </td>
+    </tr>
+</table>
+
+
+When varying the spring constant, the cloth "reacts" to the floor at different speeds. With a low spring constant, only the points near the floor have got the memo that a collision is happening, while with a high spring consant, points far up the cloth respond to the collision mcuh earlier. For example here are three images of the cloth falling with varying spring constants. All images where taken exactly 3 time steps after the simulation started:
+
+
+<table style="width:100%">
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 19-03-09.png" align="center" width="400px"/>
+            <figcaption> <strong>This is the cloth with a low spring constant. Here we can see that the force of the floor is localized to just the points right above the plane.</strong> </figcaption>
+        </td>
+
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 19-03-20.png" align="center" width="400px"/>
+            <figcaption> <strong>This is the cloth at the default spring constant. The force is still very localized to the floor, but as we can see it has spread farther up the cloth.</strong> </figcaption>        </td>
+    </tr>
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 19-03-29.png" align="center" width="400px"/>
+            <figcaption> <strong>This is the cloth with the high spring constant. Here we can see that the force has managed to propagate about a third of the way up the cloth in only  three time steps.</strong> </figcaption>
+        </td>
+    </tr>
+</table>
+
+When varying density, the cloth seems to fall at different rates. To be perfectly honest, I am not sure why this is happening. I am not even fully sure this behavior is correct, since I only barely got the code to work at all. Regardless, my best guess is that this is because when we increase density we increase intertia, which causes the model to react more slowly to things. I'm not sure why that causes it to fall slower, since as we know from Gallileo objects with differnt masses still always fall at the same rate (when ignoring air resistance). Regardless, here are images I took of the cloth falling at 3 different densities at time step 3 of the simulation:
+
+<table style="width:100%">
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 19-17-55.png" align="center" width="400px"/>
+            <figcaption> <strong>Low density</strong> </figcaption>
+        </td>
+
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 19-18-05.png" align="center" width="400px"/>
+            <figcaption> <strong>Default density</strong> </figcaption>        </td>
+    </tr>
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 19-18-34.png" align="center" width="400px"/>
+            <figcaption> <strong>High density</strong> </figcaption>
+        </td>
+    </tr>
+</table>
+
+
+<h2 align="middle">Part V: Shaders</h2>
+
+<p>Vertex and fragment shaders are small programs written in a specialized language (in our case GLSL, but others like HLSL and the Metal Shading Language also exist) that execute on the GPU. The vertex shader executes for each vertex of our input mesh, and this is where we can implement all of the vertex specific calculations we need, such as projecting the vertex from world space to screen space, and performing any vertex modifications like displacement mapping. The vertex shader is also where we specify which values we want to by linearly interpolated across the primitive and sent to the fragment shader further on. The fragment shader is a shader that runs for each fragment (or pixels as they are normally refered to), and this is where we want to calculate the final color of our pixel. This is where things like lighting calculations and texture mapping go, since those need to happen per pixel.</p>
+
+<p>Due to my existing OpengL experience, this part was very very easy by comparison. I had already implemented diffuse shading, Blinn-Phong shading, and texture mapping before in my own game engines so doing it again was pretty easy. I had never done bump mapping before though, so it was kinda of interesting having to create a matrix projecting the "object space" normal vector to world space using the normal and tangent vectors at that point, since I didn't realize you could do that. Once I got bump mapping working, displacement mapping wasn't too bad, I just had to add a term to the final gl_Position in the vertex shader that implemented the formula given in the spec. Finally, implementing the "mirror shading" was also not too bad. Since I have worked with cube maps before to implement skyboxes, it was pretty easy to calculate the direction of the reflection and just sample the cubemap with that direction.</p>
+
+<p>Blinn-Phong shading is a shading technique that combines 3 types of lighting: ambient lighting, diffuse lighting, and specular lighting. Ambient lighting is just the hardcoded minimum amount of illumination on any part of the scene, which helps very very roughly simulate the effects of global illumination, ensuring that places which recieve no direct lighting are not completely dark. Diffuse lighting emulates how much light that part of the object is reciving, and therefore how much makes it to our eye. This is done by calculating the dot product of the surface normal and the direction to the light. Finally, specular lighting emulates the effect of light bouncig directly off the object and going into our eyes. This is modeled by calculating the half vector between the eye's vector and the light's vector, and then taking the dot product of that vector and the surface normal. This gives us a value that's 1 when the reflection is "perfect" and 0 when there is none, however if we take the dot product value directly this shading will apear a little overkill. To fix this we exponentiate that value (in this case by 100), which means that values which aren't very very close to one get basically nuked down to zero. In combination, this creates a decently convincing approximation of all the lighting effects we learned about in project 3, but in a much much much faster way.</p>
+
+<table style="width:100%">
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 17-41-35.png" align="center" width="400px"/>
+            <figcaption> <strong>Ambient</strong> </figcaption>
+        </td>
+
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 17-42-17.png" align="center" width="400px"/>
+            <figcaption> <strong>Diffuse</strong> </figcaption>        </td>
+    </tr>
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 17-43-14.png" align="center" width="400px"/>
+            <figcaption> <strong>Specular</strong> </figcaption>
+        </td>
+
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 17-43-34.png" align="center" width="400px"/>
+            <figcaption> <strong>Blinn-Phong</strong> </figcaption>
+        </td>
+    </tr>
+</table>
+
+<p>Here is my texture mapping implementation using a custom texture:</p>
+
+<img src="images/Screenshot from 2023-04-12 17-48-26.png" align="center" width="400px"/>
+
+<p>With bump shading, the coarsness of the sphere didn't effect the final result much. In both cases, the sphere looked pretty round, and the cloth was round when it dropped on the sphere. On the other hand, with displacement mapping, the sphere looked MUCH less round. This makes sense, since bump mapping doesn't alter the shape of the spher, only how light is "reflected", while displacement mapping literally alters the shape of the mesh.</p>
+
+<table style="width:100%">
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 17-56-56.png" align="center" width="400px"/>
+            <figcaption> <strong>Bump mapping</strong> </figcaption>
+        </td>
+
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 17-58-40.png" align="center" width="400px"/>
+            <figcaption> <strong>Displacement mapping (-o 128 -a 128)</strong> </figcaption>        </td>
+    </tr>
+
+    <tr align="center">
+        <td style="vertical-align: top; padding: 4px; background-color: lightgray; border: 2px solid black;">
+            <img src="images/Screenshot from 2023-04-12 17-59-52.png" align="center" width="400px"/>
+            <figcaption> <strong>Displacement mapping (-o 16 -a 16)</strong> </figcaption>
+        </td>
+    </tr>
+</table>
+
+<p>Here is my mirror shader:</p>
+
+<img src="images/Screenshot from 2023-04-12 18-04-54.png" align="center" width="400px"/>
+
 </body>
 </html>
-
